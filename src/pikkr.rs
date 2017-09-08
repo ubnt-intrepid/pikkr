@@ -24,17 +24,13 @@ pub struct Pikkr<'a> {
     queries_len: usize,
     level: usize,
 
-    train_num: usize,
-    trained_num: usize,
-    trained: bool,
-
     stats: Vec<FnvHashSet<usize>>,
 }
 
 impl<'a> Pikkr<'a> {
     /// Creates a JSON parser and returns it.
     #[inline]
-    pub fn new<S: ?Sized + AsRef<[u8]>>(query_strs: &[&'a S], train_num: usize) -> Result<Pikkr<'a>> {
+    pub fn new<S: ?Sized + AsRef<[u8]>>(query_strs: &[&'a S]) -> Result<Pikkr<'a>> {
         if query_strs.iter().any(|s| !is_valid_query_str(s.as_ref())) {
             return Err(Error::from(ErrorKind::InvalidQuery));
         }
@@ -50,10 +46,6 @@ impl<'a> Pikkr<'a> {
             queries: FnvHashMap::default(),
             queries_len: 0,
             level: 0,
-
-            train_num: train_num,
-            trained_num: 0,
-            trained: false,
 
             stats: Vec::new(),
         };
@@ -82,7 +74,7 @@ impl<'a> Pikkr<'a> {
 
     /// Parses a JSON record and returns the result.
     #[inline]
-    pub fn parse<'b, S: ?Sized + AsRef<[u8]>>(&mut self, rec: &'b S) -> Result<Vec<Option<&'b [u8]>>> {
+    pub fn parse<'b, S: ?Sized + AsRef<[u8]>>(&mut self, rec: &'b S, trained: bool) -> Result<Vec<Option<&'b [u8]>>> {
         let rec = rec.as_ref();
 
         let rec_len = rec.len();
@@ -133,7 +125,7 @@ impl<'a> Pikkr<'a> {
             results.push(None);
         }
 
-        if self.trained {
+        if trained {
             let found = match parser::speculative_parse(
                 rec,
                 &index,
@@ -183,6 +175,38 @@ impl<'a> Pikkr<'a> {
             ) {
                 return Err(e);
             };
+        }
+
+        Ok(results)
+    }
+}
+
+
+/// A wrapper of `Pikkr` to count how many `parse()` called.
+pub struct CountedParser<'a> {
+    inner: Pikkr<'a>,
+    train_num: usize,
+    trained_num: usize,
+    trained: bool,
+}
+
+impl<'a> CountedParser<'a> {
+    pub fn new<S: ?Sized + AsRef<[u8]>>(queries: &[&'a S], train_num: usize) -> Result<Self> {
+        Ok(CountedParser {
+            inner: Pikkr::new(queries)?,
+            train_num,
+            trained_num: 0,
+            trained: false,
+        })
+    }
+
+    #[inline(always)]
+    pub fn parse<'r, S: ?Sized + AsRef<[u8]>>(&mut self, rec: &'r S) -> Result<Vec<Option<&'r [u8]>>> {
+        let results;
+        if self.trained {
+            results = self.inner.parse(rec, true)?;
+        } else {
+            results = self.inner.parse(rec, false)?;
             self.trained_num += 1;
             if self.trained_num >= self.train_num {
                 self.trained = true;
@@ -263,7 +287,7 @@ fn set_queries<'a>(queries: &mut FnvHashMap<&'a [u8], Query<'a>>, s: &'a [u8], i
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{is_valid_query_str, CountedParser as Pikkr, Result};
 
     #[test]
     fn test_pikkr_new() {
