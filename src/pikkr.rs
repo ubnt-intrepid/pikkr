@@ -11,6 +11,11 @@ use x86intrin::m256i;
 
 const ROOT_QUERY_STR_OFFSET: usize = 2;
 
+pub enum ParseMode {
+    Basic,
+    Speculative,
+}
+
 /// JSON parser which picks up values directly without performing tokenization
 pub struct Pikkr<'a> {
     backslash: m256i,
@@ -74,7 +79,7 @@ impl<'a> Pikkr<'a> {
 
     /// Parses a JSON record and returns the result.
     #[inline]
-    pub fn parse<'b, S: ?Sized + AsRef<[u8]>>(&mut self, rec: &'b S, trained: bool) -> Result<Vec<Option<&'b [u8]>>> {
+    pub fn parse<'b, S: ?Sized + AsRef<[u8]>>(&mut self, rec: &'b S, mode: ParseMode) -> Result<Vec<Option<&'b [u8]>>> {
         let rec = rec.as_ref();
 
         let rec_len = rec.len();
@@ -125,24 +130,43 @@ impl<'a> Pikkr<'a> {
             results.push(None);
         }
 
-        if trained {
-            let found = match parser::speculative_parse(
-                rec,
-                &index,
-                &self.queries,
-                0,
-                rec_len - 1,
-                0,
-                &self.stats,
-                &mut results,
-                &b_quote,
-            ) {
-                Ok(found) => found,
-                Err(e) => {
-                    return Err(e);
+        match mode {
+            ParseMode::Speculative => {
+                let found = match parser::speculative_parse(
+                    rec,
+                    &index,
+                    &self.queries,
+                    0,
+                    rec_len - 1,
+                    0,
+                    &self.stats,
+                    &mut results,
+                    &b_quote,
+                ) {
+                    Ok(found) => found,
+                    Err(e) => {
+                        return Err(e);
+                    }
+                };
+                if !found {
+                    if let Err(e) = parser::basic_parse(
+                        rec,
+                        &index,
+                        &mut self.queries,
+                        0,
+                        rec_len - 1,
+                        0,
+                        self.queries_len,
+                        &mut self.stats,
+                        false,
+                        &mut results,
+                        &b_quote,
+                    ) {
+                        return Err(e);
+                    };
                 }
-            };
-            if !found {
+            }
+            ParseMode::Basic => {
                 if let Err(e) = parser::basic_parse(
                     rec,
                     &index,
@@ -152,29 +176,13 @@ impl<'a> Pikkr<'a> {
                     0,
                     self.queries_len,
                     &mut self.stats,
-                    false,
+                    true,
                     &mut results,
                     &b_quote,
                 ) {
                     return Err(e);
                 };
             }
-        } else {
-            if let Err(e) = parser::basic_parse(
-                rec,
-                &index,
-                &mut self.queries,
-                0,
-                rec_len - 1,
-                0,
-                self.queries_len,
-                &mut self.stats,
-                true,
-                &mut results,
-                &b_quote,
-            ) {
-                return Err(e);
-            };
         }
 
         Ok(results)
@@ -204,9 +212,9 @@ impl<'a> CountedParser<'a> {
     pub fn parse<'r, S: ?Sized + AsRef<[u8]>>(&mut self, rec: &'r S) -> Result<Vec<Option<&'r [u8]>>> {
         let results;
         if self.trained {
-            results = self.inner.parse(rec, true)?;
+            results = self.inner.parse(rec, ParseMode::Speculative)?;
         } else {
-            results = self.inner.parse(rec, false)?;
+            results = self.inner.parse(rec, ParseMode::Basic)?;
             self.trained_num += 1;
             if self.trained_num >= self.train_num {
                 self.trained = true;
