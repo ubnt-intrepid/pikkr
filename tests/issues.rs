@@ -2,7 +2,7 @@ extern crate pikkr;
 
 #[allow(non_snake_case)]
 mod issues {
-    use pikkr::Pikkr;
+    use pikkr::CountedParser as Pikkr;
     use pikkr::ErrorKind;
 
     /// The helper macro for test cases.

@@ -13,5 +13,5 @@ mod result;
 mod utf8;
 
 pub use error::{Error, ErrorKind};
-pub use pikkr::Pikkr;
+pub use pikkr::{CountedParser, Pikkr};
 pub use result::Result;
