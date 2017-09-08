@@ -121,9 +121,7 @@ impl<'a> Pikkr<'a> {
         }
 
         let mut index = Vec::with_capacity(self.level);
-        if let Err(e) = index_builder::build_leveled_colon_bitmap(&b_colon, &b_left, &b_right, self.level, &mut index) {
-            return Err(e);
-        };
+        index_builder::build_leveled_colon_bitmap(&b_colon, &b_left, &b_right, self.level, &mut index)?;
 
         let mut results = Vec::with_capacity(self.query_strs_len);
         for _ in 0..self.query_strs_len {
@@ -132,7 +130,7 @@ impl<'a> Pikkr<'a> {
 
         match mode {
             ParseMode::Speculative => {
-                let found = match parser::speculative_parse(
+                let found = parser::speculative_parse(
                     rec,
                     &index,
                     &self.queries,
@@ -142,14 +140,9 @@ impl<'a> Pikkr<'a> {
                     &self.stats,
                     &mut results,
                     &b_quote,
-                ) {
-                    Ok(found) => found,
-                    Err(e) => {
-                        return Err(e);
-                    }
-                };
+                )?;
                 if !found {
-                    if let Err(e) = parser::basic_parse(
+                    parser::basic_parse(
                         rec,
                         &index,
                         &mut self.queries,
@@ -161,13 +154,11 @@ impl<'a> Pikkr<'a> {
                         false,
                         &mut results,
                         &b_quote,
-                    ) {
-                        return Err(e);
-                    };
+                    )?;
                 }
             }
             ParseMode::Basic => {
-                if let Err(e) = parser::basic_parse(
+                parser::basic_parse(
                     rec,
                     &index,
                     &mut self.queries,
@@ -179,9 +170,7 @@ impl<'a> Pikkr<'a> {
                     true,
                     &mut results,
                     &b_quote,
-                ) {
-                    return Err(e);
-                };
+                )?;
             }
         }
 
