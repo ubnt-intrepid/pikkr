@@ -6,38 +6,36 @@
 #[allow(non_camel_case_types)]
 pub type m256i = [u64; 4];
 
+
+pub fn mm256i(x: i8) -> m256i {
+    [(x as u8) as u64 * 0x0101_0101_0101_0101_u64; 4]
+}
+
+fn slice_to_u64(s: &[u8]) -> u64 {
+    let mut res = 0_u64;
+    for (i, x) in s[0..8].iter().enumerate() {
+        res |= (*x as u64) << ((7 - i) * 8);
+    }
+    res
+}
+
+
 #[allow(unused_unsafe)]
-pub mod avx {
-    use super::m256i;
+pub unsafe fn u8_to_m256i(s: &[u8], i: usize) -> m256i {
+    debug_assert!(i + 31 < s.len());
+    [slice_to_u64(&s[i      .. i +  8]),
+     slice_to_u64(&s[i +  8 .. i + 16]),
+     slice_to_u64(&s[i + 16 .. i + 24]),
+     slice_to_u64(&s[i + 24 .. i + 32])]
+}
 
-    pub fn mm256i(x: i8) -> m256i {
-        [(x as u8) as u64 * 0x0101_0101_0101_0101_u64; 4]
+#[allow(unused_unsafe)]
+pub unsafe fn u8_to_m256i_rest(s: &[u8], i: usize) -> m256i {
+    let mut result = [0_u64; 4];
+    for x in i..s.len() {
+        result[(x - i) / 8] |= (s[x] as u64) << ((7 - ((x - i) & 7)) * 8);
     }
-
-    fn slice_to_u64(s: &[u8]) -> u64 {
-        let mut res = 0_u64;
-        for (i, x) in s[0..8].iter().enumerate() {
-            res |= (*x as u64) << ((7 - i) * 8);
-        }
-        res
-    }
-
-
-    pub unsafe fn u8_to_m256i(s: &[u8], i: usize) -> m256i {
-        debug_assert!(i + 31 < s.len());
-        [slice_to_u64(&s[i      .. i +  8]),
-         slice_to_u64(&s[i +  8 .. i + 16]),
-         slice_to_u64(&s[i + 16 .. i + 24]),
-         slice_to_u64(&s[i + 24 .. i + 32])]
-    }
-
-    pub unsafe fn u8_to_m256i_rest(s: &[u8], i: usize) -> m256i {
-        let mut result = [0_u64; 4];
-        for x in i..s.len() {
-            result[(x - i) / 8] |= (s[x] as u64) << ((7 - ((x - i) & 7)) * 8);
-        }
-        result
-    }
+    result
 }
 
 pub fn mm256_cmpeq_epi8(x: m256i, y: m256i) -> m256i {

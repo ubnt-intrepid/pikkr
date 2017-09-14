@@ -6,7 +6,9 @@ extern crate x86intrin;
 #[cfg(feature = "avx-accel")]
 mod avx;
 #[cfg(not(feature = "avx-accel"))]
-mod emulated;
+#[path = "emulated.rs"]
+mod avx;
+
 mod bit;
 mod error;
 #[doc(hidden)]
@@ -18,9 +20,6 @@ mod pikkr;
 pub mod query;
 mod result;
 mod utf8;
-
-#[cfg(not(feature = "avx-accel"))]
-pub use emulated::avx;
 
 pub use error::{Error, ErrorKind};
 pub use pikkr::Pikkr;

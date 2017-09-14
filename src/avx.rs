@@ -1,40 +1,14 @@
-use x86intrin::{m256i, mm256_setr_epi8};
+pub use x86intrin::{m256i, mm256_cmpeq_epi8, mm256_movemask_epi8};
+use x86intrin::mm256_setr_epi8;
 
 #[inline]
+#[cfg_attr(rustfmt, rustfmt_skip)]
 pub fn mm256i(i: i8) -> m256i {
     mm256_setr_epi8(
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
-        i,
+        i, i, i, i, i, i, i, i,
+        i, i, i, i, i, i, i, i,
+        i, i, i, i, i, i, i, i,
+        i, i, i, i, i, i, i, i,
     )
 }
 

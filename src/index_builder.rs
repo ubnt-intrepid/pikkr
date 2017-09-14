@@ -1,12 +1,9 @@
-use super::avx;
+use super::avx::{self, m256i};
 use super::bit;
 use super::error::ErrorKind;
 use super::result::Result;
 use super::utf8::{BACKSLASH, COLON, LEFT_BRACE, QUOTE, RIGHT_BRACE};
-#[cfg(feature = "avx-accel")]
-use x86intrin::{m256i, mm256_cmpeq_epi8, mm256_movemask_epi8};
-#[cfg(not(feature = "avx-accel"))]
-use emulated::{m256i, mm256_cmpeq_epi8, mm256_movemask_epi8};
+
 
 #[derive(Debug)]
 pub struct IndexBuilder {
@@ -163,14 +160,14 @@ pub fn build_structural_character_bitmap(s: &[u8], b_backslash: &mut Vec<u64>, b
 
 #[inline]
 fn mbitmap(s1: &m256i, s2: &m256i, m: &m256i) -> u64 {
-    let i1 = mm256_movemask_epi8(mm256_cmpeq_epi8(*s1, *m));
-    let i2 = mm256_movemask_epi8(mm256_cmpeq_epi8(*s2, *m));
+    let i1 = avx::mm256_movemask_epi8(avx::mm256_cmpeq_epi8(*s1, *m));
+    let i2 = avx::mm256_movemask_epi8(avx::mm256_cmpeq_epi8(*s2, *m));
     u64::from(i1 as u32) | (u64::from(i2 as u32) << 32)
 }
 
 #[inline]
 fn mbitmap_partial(s: &m256i, m: &m256i) -> u64 {
-    u64::from(mm256_movemask_epi8(mm256_cmpeq_epi8(*s, *m)) as u32)
+    u64::from(avx::mm256_movemask_epi8(avx::mm256_cmpeq_epi8(*s, *m)) as u32)
 }
 
 
