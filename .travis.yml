@@ -13,11 +13,11 @@ matrix:
     # Supplemental checks
     - env: CI_MODE="format-diff"
       rust: nightly
-    - env: CI_MODE="clippy"
+    - env: CI_MODE="clippy" ALLOW_FAILURE=true
       rust: nightly
 
   allow_failures:
-    - rust: nightly
+    - env: ALLOW_FAILURE=true
 
 cache: cargo
 
